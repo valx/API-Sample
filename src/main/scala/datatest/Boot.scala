@@ -8,54 +8,30 @@ import spray.can.Http
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
-
+/*
+Create and initialize the Akka Actor systems
+ */
 object Boot extends App {
 
-  // we need an ActorSystem to host our application in
-
+  // load configuration from src/main/resources/application.conf
   val config = ConfigFactory.load()
 
+  // main Akka actor system, including Http Receiver, Router balance , 2 Update workers
   implicit val systemMain = ActorSystem("datatest-MainSys",config.getConfig("akkaMain").withFallback(config))
 
+  // workers  Akka actor system, including 2 Update workers
   implicit val systemWorker = ActorSystem("datatest-WorkSys",config.getConfig("akkaWorker").withFallback(config))
 
-  // create and start our service actor
+  // create and start our workers actors for both systems
   val updaterActor1 = systemMain.actorOf(Props[Updater], "updaterM1")
   val updaterActor2 = systemMain.actorOf(Props[Updater], "updaterM2")
   val updaterActor3 = systemWorker.actorOf(Props[Updater], "updaterW3")
   val updaterActor3String = "akka.tcp://datatest-WorkSys@127.0.0.1:2553/user/updaterW3"
-  //val updaterActor4 = systemWorker.actorOf(Props[Updater], "updaterW4")
+  val updaterActor4 = systemWorker.actorOf(Props[Updater], "updaterW4")
   val updaterActor4String = "akka.tcp://datatest-WorkSys@127.0.0.1:2553/user/updaterW4"
 
-  println(updaterActor1.path  +"  " +  updaterActor3.path)
-  //println(updaterActor1  +"  " +  updaterActor3)
- /* val routees = Vector[ActorRef](updaterActor1, updaterActor2, updaterActor3, updaterActor4)
-  //Actor[akka://datatest-MainSys/user/updaterM1#-2003897832]  Actor[akka://datatest-WorkSys/user/updaterW3#-255480446
-  // funziona: akka://datatest-MainSys/user/updaterM2
-  NON funziona:
-  */
-
-
-  val routees = Vector[String]("/user/updaterM1","akka.tcp://datatest-WorkSys@127.0.0.1:2553/user/updaterW3")
-
-  var remote = systemMain.actorSelection("akka://datatest-MainSys/user/updaterM2")
-  remote ! "t1"
-
-  remote = systemMain.actorSelection("akka.tcp://datatest-WorkSys@127.0.0.1:2553/user/updaterW3")
-  remote ! "t21"
-
-  val remote2 = systemMain.actorSelection("akka.tcp://datatest-WorkSys@127.0.0.1:2553/user/updaterW3")
-  remote2 ! "t22"
-
-  updaterActor3 ! "t3"
-
-
-
-
-
-
-
-
+  // create the Router (load balance) and connect the 4 workers to it
+  val routees = Vector[String]("/user/updaterM1",updaterActor3String,"/user/updaterM2",updaterActor4String)
   val routerWrite = systemMain.actorOf(Props.empty.withRouter(
     RoundRobinRouter(routees = routees)),"routerWrite")
 

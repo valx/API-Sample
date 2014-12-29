@@ -4,6 +4,8 @@ import akka.actor.Actor
 import spray.routing._
 import spray.http._
 import MediaTypes._
+import spray.json._
+import DefaultJsonProtocol._
 
 class ReceiverActor extends Actor with HttpService{
 
@@ -23,7 +25,8 @@ class ReceiverActor extends Actor with HttpService{
     (path("write") & get) {
       parameters('ti, 'ty) { (ti, ty) =>
         respondWithMediaType(`text/html`) { // XML is marshalled to `text/xml` by default, so we simply override here
-          routerWrite ! "ciao"
+          val m = (ti,ty)
+          routerWrite ! m
           println("wrote!"+ti+"-"+ty)
           complete {
             <html>

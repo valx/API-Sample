@@ -13,7 +13,8 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-actor"    % akkaV,
     "com.typesafe.akka" %% "akka-remote" % akkaV,
     "com.datastax.cassandra" % "cassandra-driver-core" % "2.1.4",
-    "org.apache.cassandra" % "cassandra-all" % "2.1.2"
+    "org.apache.cassandra" % "cassandra-all" % "2.1.2",
+    "io.spray" %%  "spray-json" % sprayV
     //"io.spray"            %%  "spray-testkit" % sprayV  % "test"
     //com.typesafe.akka"   %%  "akka-testkit"  % akkaV   % "test"
     //"org.specs2"          %%  "specs2-core"   % "2.3.7" % "test"

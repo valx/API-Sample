@@ -4,12 +4,14 @@ import akka.actor.Actor
 import com.datastax.driver.core._
 import scala.collection.JavaConversions._
 import akka.event.Logging
+import java.lang.Integer
 
 /**
  * Created by valerio on 12/28/14.
  */
 
 class Updater extends Actor {
+
   val log = Logging(context.system, this)
   var cluster: Cluster = null
   private var session: Session = null
@@ -17,7 +19,15 @@ class Updater extends Actor {
   connect("127.0.0.1")
 
   def receive = {
-    case m:String => log.info("received message: "+m)
+
+    case (ti:String,ty:String) => log.info("received message: "+ti+","+ty)
+      val statement:PreparedStatement = session.prepare(
+        "UPDATE datatest.events SET number = number + 1 WHERE minute=? AND type=?;"
+      );
+      val boundStatement:BoundStatement = new BoundStatement(statement);
+      session.execute(  boundStatement.bind( new Integer(ti),ty )  );
+
+    case _ => log.info("Unknown message")
   }
 
   def connect(node: String) {
@@ -33,13 +43,6 @@ class Updater extends Actor {
     }
 
     session = cluster.connect("datatest");
-    val statement:PreparedStatement = session.prepare(
-      "UPDATE datatest.events SET number = number + 5 WHERE minute=2 AND type='EventType2';"
-    );
-
-    val boundStatement:BoundStatement = new BoundStatement(statement);
-
-    session.execute(boundStatement);
 
   }
 

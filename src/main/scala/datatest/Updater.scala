@@ -4,7 +4,7 @@ import akka.actor.Actor
 import com.datastax.driver.core._
 import scala.collection.JavaConversions._
 import akka.event.Logging
-import java.lang.Integer
+import datatest.Utils._
 
 /**
  * Created by valerio on 12/28/14.
@@ -21,12 +21,16 @@ class Updater extends Actor {
   def receive = {
 
     case (ti:String,ty:String) => log.info("received message: "+ti+","+ty)
-      val statement:PreparedStatement = session.prepare(
-        "UPDATE datatest.events SET number = number + 1 WHERE minute=? AND type=?;"
-      );
-      val boundStatement:BoundStatement = new BoundStatement(statement);
-      session.execute(  boundStatement.bind( new Integer(ti),ty )  );
-
+      if(ti.toLong>9999999999L){
+        log.error("The timestamp should be expressed in seconds, maximum 10 digits")
+      }
+      else {
+        val statement: PreparedStatement = session.prepare(
+          "UPDATE datatest.events SET number = number + 1 WHERE minute=? AND type=?;"
+        );
+        val boundStatement: BoundStatement = new BoundStatement(statement);
+        session.execute(boundStatement.bind(new Integer(ti.toMinute), ty));
+      }
     case _ => log.info("Unknown message")
   }
 

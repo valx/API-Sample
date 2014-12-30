@@ -3,7 +3,6 @@ package datatest
 import akka.actor.Actor
 import akka.event.Logging
 import com.datastax.driver.core._
-import datatest.Utils
 import scala.collection.JavaConversions._
 import spray.json._
 import DefaultJsonProtocol._

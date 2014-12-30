@@ -3,26 +3,25 @@ package datatest
 import akka.actor.Actor
 import akka.event.Logging
 import com.datastax.driver.core._
+import datatest.Utils
 import scala.collection.JavaConversions._
 import spray.json._
 import DefaultJsonProtocol._
 import datatest.Utils._
 
-
 /**
- * Created by valerio on 12/28/14.
+ * Akka actor which reads from the database ()
  */
-
-case class Record(tipe: String, minute:Int, number:Long)
-
 class Reader extends Actor {
 
   val log = Logging(context.system, this)
   var cluster: Cluster = null
   private var session: Session = null
 
-  connect("127.0.0.1")
+  // connect to Cassandra only once
+  connect(Utils.cassandra_host)
 
+  // // READ request: t1 represents the initial time, t2 the final time, ty is the type
   def receive = {
 
     case (t1:String,t2:String,ty:String) =>
@@ -33,7 +32,7 @@ class Reader extends Actor {
       else {
         log.info("received message: " + t1 + "," + t2 + "," + ty + "- Range:" + t1.toMinute + "-" + t2.toMinute)
         val statement: PreparedStatement = session.prepare(
-          "SELECT * from datatest.events WHERE minute>=? and minute<=? AND type IN (?) ;"
+          "SELECT * from "+Utils.cassandra_keyspace+"."+Utils.cassandra_table+" WHERE minute>=? and minute<=? AND type IN (?) ;"
         );
         val boundStatement: BoundStatement = new BoundStatement(statement);
         val results: Iterable[Row] = session.execute(boundStatement.bind(new Integer(t1.toMinute), new Integer(t2.toMinute), ty));
@@ -49,6 +48,7 @@ class Reader extends Actor {
 
         sender() ! resList.toJson.prettyPrint
       }
+
     case _ => log.info("Unknown message")
   }
 
@@ -56,15 +56,14 @@ class Reader extends Actor {
 
     cluster = Cluster.builder().addContactPoint(node).build()
     val metadata = cluster.getMetadata()
-    printf("Connected to cluster: %s\n",
-      metadata.getClusterName())
+    log.info("Connected to cluster: %s\n", metadata.getClusterName())
     metadata.getAllHosts() map {
       case host =>
-        printf("Datatacenter: %s; Host: %s; Rack: %s\n",
+        log.info("Datatacenter: %s; Host: %s; Rack: %s\n",
           host.getDatacenter(), host.getAddress(), host.getRack())
     }
 
-    session = cluster.connect("datatest");
+    session = cluster.connect(Utils.cassandra_keyspace);
 
   }
 

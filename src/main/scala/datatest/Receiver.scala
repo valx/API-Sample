@@ -1,6 +1,7 @@
 package datatest
 
 import akka.actor.Actor
+import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.Await
@@ -8,41 +9,42 @@ import scala.concurrent.duration._
 import spray.routing._
 import spray.http._
 import MediaTypes._
-import spray.json._
 
+/*
+  Akka-Spray actor which receives http/REST requests and forwards them to other actors
+ */
 class Receiver extends Actor with HttpService{
 
-  // the HttpService trait defines only one abstract member, which
-  // connects the services environment to the enclosing actor or test
+  val log = Logging(context.system, this)
+
   def actorRefFactory = context
 
-  // this actor only runs our route, but you could add
-  // other things here, like request stream processing
-  // or timeout handling
   def receive = runRoute(myRoute)
 
   val routerWrite = context.actorSelection("../routerWrite")
 
   val routerRead = context.actorSelection("../routerRead")
 
+  // actions: write or read
   val myRoute =
-
+  // WRITE request: ti represents the initial timestamp,  ty is the event type
     (path("write") & get) {
       parameters('ti, 'ty) { (ti, ty) =>
         val m = (ti,ty)
         routerWrite ! m
         respondWithMediaType(`text/html`) { // XML is marshalled to `text/xml` by default, so we simply override here
-          println("wrote!"+ti+"-"+ty)
+          log.info("writing"+ti+"-"+ty)
           complete {
             <html>
               <body>
-                <p>writing</p>
+                <p>write message sent</p>
               </body>
             </html>
           }
         }
       }
     } ~
+      // READ request: t1 represents the initial time, t2 the final time, ty is the type
       (path("read") & get) {
         parameters('t1, 't2, 'ty) { (t1,t2,ty) =>
           val m = (t1,t2,ty)
@@ -54,7 +56,6 @@ class Receiver extends Actor with HttpService{
               result
             }
           }
-          //println("read1!" + t1)
         }
       } ~
       path("") {

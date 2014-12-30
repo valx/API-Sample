@@ -7,17 +7,18 @@ import akka.event.Logging
 import datatest.Utils._
 
 /**
- * Created by valerio on 12/28/14.
+ * Akka actor which updates the Database (on write requests)
  */
-
 class Updater extends Actor {
 
   val log = Logging(context.system, this)
   var cluster: Cluster = null
   private var session: Session = null
 
-  connect("127.0.0.1")
+  // connect to Cassandra only once
+  connect(Utils.cassandra_host)
 
+  // receive WRITE request: ti represents the initial timestamp,  ty is the event type
   def receive = {
 
     case (ti:String,ty:String) => log.info("received message: "+ti+","+ty)
@@ -26,11 +27,12 @@ class Updater extends Actor {
       }
       else {
         val statement: PreparedStatement = session.prepare(
-          "UPDATE datatest.events SET number = number + 1 WHERE minute=? AND type=?;"
+          "UPDATE "+Utils.cassandra_keyspace+"."+Utils.cassandra_table+" SET number = number + 1 WHERE minute=? AND type=?;"
         );
         val boundStatement: BoundStatement = new BoundStatement(statement);
         session.execute(boundStatement.bind(new Integer(ti.toMinute), ty));
       }
+
     case _ => log.info("Unknown message")
   }
 
@@ -38,15 +40,13 @@ class Updater extends Actor {
 
     cluster = Cluster.builder().addContactPoint(node).build()
     val metadata = cluster.getMetadata()
-    printf("Connected to cluster: %s\n",
-      metadata.getClusterName())
+    log.info("Connected to cluster: %s\n", metadata.getClusterName())
     metadata.getAllHosts() map {
       case host =>
-        printf("Datatacenter: %s; Host: %s; Rack: %s\n",
-          host.getDatacenter(), host.getAddress(), host.getRack())
+        log.info("Datatacenter: %s; Host: %s; Rack: %s\n", host.getDatacenter(), host.getAddress(), host.getRack())
     }
 
-    session = cluster.connect("datatest");
+    session = cluster.connect(Utils.cassandra_keyspace);
 
   }
 
